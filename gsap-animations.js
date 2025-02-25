@@ -1,98 +1,72 @@
-class GSAPAnimation extends HTMLElement {
-  constructor() {
-    super();
-    this.animateElement = this.animateElement.bind(this);
+document.addEventListener("DOMContentLoaded", function() {
+  // Ensure GSAP & ScrollTrigger are available
+  if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
+    console.error("GSAP or ScrollTrigger not loaded. Check CDN.");
+    return;
   }
 
-  connectedCallback() {
-    // Ensure GSAP & ScrollTrigger are available
-    if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
-      console.error("GSAP or ScrollTrigger not found. Make sure they are loaded.");
-      return;
-    }
+  gsap.registerPlugin(ScrollTrigger); // Register ScrollTrigger
 
-    // Register ScrollTrigger
-    gsap.registerPlugin(ScrollTrigger);
+  // Select all elements with data-gsap attribute
+  const animatedElements = document.querySelectorAll('[data-gsap]');
 
-    // Check for reduced motion preference
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) {
-      this.style.opacity = 1;
-      this.style.transform = 'none';
-      return;
-    }
+  animatedElements.forEach(element => {
+    const animationType = element.getAttribute('data-gsap');
+    const duration = parseFloat(element.getAttribute('data-duration')) || 1;
+    const delay = parseFloat(element.getAttribute('data-delay')) || 0;
+    const easing = element.getAttribute('data-easing') || 'power2.out';
+    const repeat = parseInt(element.getAttribute('data-repeat')) || 0;
+    const yoyo = element.getAttribute('data-yoyo') === 'true';
 
-    // Get attributes from Webflow elements
-    this.animationType = this.getAttribute('data-gsap');
-    this.duration = parseFloat(this.getAttribute('data-duration')) || 1;
-    this.delay = parseFloat(this.getAttribute('data-delay')) || 0;
-    this.easing = this.getAttribute('data-easing') || 'power1.out';
-    this.repeat = parseInt(this.getAttribute('data-repeat')) || 0;
-    this.yoyo = this.getAttribute('data-yoyo') === 'true';
-    this.trigger = this.getAttribute('data-trigger') || null;
-    this.start = this.getAttribute('data-start') || 'top 80%';
-    this.end = this.getAttribute('data-end') || 'bottom 20%';
-    this.toggleActions = this.getAttribute('data-toggle-actions') || 'play none none none';
-    this.markers = this.getAttribute('data-markers') === 'true';
+    const trigger = element.getAttribute('data-trigger') || element;
+    const start = element.getAttribute('data-start') || 'top 85%';
+    const end = element.getAttribute('data-end') || 'bottom 10%';
+    const toggleActions = element.getAttribute('data-toggle-actions') || 'play none none none';
+    const markers = element.getAttribute('data-markers') === 'true';
 
-    // Initialize GSAP animation
-    this.animateElement();
-  }
+    let animation;
 
-  animateElement() {
-    if (!this.animationType) {
-      console.error("No animation type provided for", this);
-      return;
-    }
-
-    const animations = {
-      fadeIn: () => gsap.from(this, { duration: this.duration, delay: this.delay, opacity: 0, y: 20, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
-      slideInRight: () => gsap.from(this, { duration: this.duration, delay: this.delay, x: 100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
-      rotateIn: () => gsap.from(this, { duration: this.duration, delay: this.delay, rotation: -360, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
-      scaleUp: () => gsap.from(this, { duration: this.duration, delay: this.delay, scale: 0, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
-
-      fadeInScroll: () => {
-        gsap.from(this, {
-          duration: this.duration,
-          delay: this.delay,
-          opacity: 0,
-          y: 20,
-          ease: this.easing,
-          scrollTrigger: {
-            trigger: this,
-            start: this.start,
-            end: this.end,
-            toggleActions: this.toggleActions,
-            markers: this.markers,
-          }
+    // Standard GSAP animations
+    switch(animationType) {
+      case 'fadeIn':
+        animation = gsap.from(element, { duration, delay, opacity: 0, y: 20, ease: easing, repeat, yoyo });
+        break;
+      case 'slideInRight':
+        animation = gsap.from(element, { duration, delay, x: 100, opacity: 0, ease: easing, repeat, yoyo });
+        break;
+      case 'bounce':
+        animation = gsap.from(element, { duration, delay, y: -50, opacity: 0, ease: "bounce.out", repeat, yoyo });
+        break;
+      case 'zoomIn':
+        animation = gsap.from(element, { duration, delay, scale: 0, opacity: 0, ease: easing, repeat, yoyo });
+        break;
+      
+      // Scroll-triggered animations
+      case 'fadeInScroll':
+        animation = gsap.from(element, {
+          duration, delay, opacity: 0, y: 20, ease: easing,
+          scrollTrigger: { trigger, start, end, toggleActions, markers }
         });
-      },
-
-      slideInRightScroll: () => {
-        gsap.from(this, {
-          duration: this.duration,
-          delay: this.delay,
-          x: 100,
-          opacity: 0,
-          ease: this.easing,
-          scrollTrigger: {
-            trigger: this,
-            start: this.start,
-            end: this.end,
-            toggleActions: this.toggleActions,
-            markers: this.markers,
-          }
+        break;
+      case 'slideInRightScroll':
+        animation = gsap.from(element, {
+          duration, delay, x: 100, opacity: 0, ease: easing,
+          scrollTrigger: { trigger, start, end, toggleActions, markers }
         });
-      },
-    };
-
-    if (animations[this.animationType]) {
-      animations[this.animationType]();
-    } else {
-      console.error(`Unknown GSAP animation type: ${this.animationType}`);
+        break;
+      case 'zoomInScroll':
+        animation = gsap.from(element, {
+          duration, delay, scale: 0, opacity: 0, ease: easing,
+          scrollTrigger: { trigger, start, end, toggleActions, markers }
+        });
+        break;
+      default:
+        console.warn(`Unknown animation type: ${animationType}`);
     }
-  }
-}
 
-// Define the custom element
-customElements.define("gsap-animation", GSAPAnimation);
+    // Debugging logs
+    if (animation) {
+      console.log(`GSAP animation '${animationType}' applied to`, element);
+    }
+  });
+});
