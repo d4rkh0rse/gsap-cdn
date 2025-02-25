@@ -1,101 +1,84 @@
 // custom-gsap-attributes.js
-
 const GSAPAttributes = (() => {
-  // Animation presets
   const presets = {
-    fadeIn: { opacity: 0, y: 20 },
-    slideUp: { y: 100, opacity: 0 },
-    scaleUp: { scale: 0.8, opacity: 0 },
-    // Add more presets here
+    fadeIn: { opacity: 0, y: 20, ease: "power2.out" },
+    slideUp: { y: 100, opacity: 0, ease: "power4.out" }
   };
 
-  // Core animation handler
-  function animateElement(el) {
-    const type = el.dataset.gsap;
-    const duration = parseFloat(el.dataset.duration) || 1;
-    const stagger = parseStagger(el.dataset.stagger);
-    const vars = parseVars(el.dataset.vars);
-    
-    // Combine preset + custom vars
-    const animationVars = {
-      ...(presets[type] || {}),
-      ...vars,
-      duration,
-      stagger
-    };
-
-    // Create timeline or single animation
-    if (el.dataset.timeline) {
-      handleTimeline(el, animationVars);
-    } else {
-      const targets = el.dataset.stagger ? el.children : el;
-      gsap.from(targets, {
-        ...animationVars,
-        scrollTrigger: createScrollTrigger(el)
-      });
-    }
+  // Webflow-specific DOM observer
+  function observeDOM() {
+    new MutationObserver(() => {
+      setTimeout(initAnimations, 100); // Wait for Webflow rebind
+    }).observe(document.body, { subtree: true, childList: true });
   }
 
-  // ScrollTrigger configuration
-  function createScrollTrigger(el) {
-    if (!el.dataset.trigger) return null;
-    const [start, end] = el.dataset.trigger.split(' ');
-    return {
-      trigger: el,
-      start: start || 'top 80%',
-      end: end || 'bottom 20%',
-      toggleActions: 'play none none reverse'
-    };
-  }
+  function initAnimations() {
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.utils.toArray('[data-gsap]').forEach(el => {
+      if (el._gsap) return; // Prevent duplicates
+      el._gsap = true;
 
-  // Helper functions
-  function parseStagger(value) {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value ? parseFloat(value) : null;
-    }
-  }
+      const type = el.dataset.gsap;
+      const duration = el.dataset.duration || 1;
+      const trigger = el.dataset.trigger || "top 80%";
+      const stagger = parseStagger(el.dataset.stagger);
+      const vars = parseVars(el.dataset.vars);
 
-  function parseVars(value) {
-    try {
-      return value ? JSON.parse(value) : {};
-    } catch (e) {
-      console.error('Invalid data-vars:', value);
-      return {};
-    }
-  }
+      // Webflow fix: Force opacity:0 initially
+      if (type === 'fadeIn' && !el.style.opacity) {
+        gsap.set(el, { opacity: 0 });
+      }
 
-  // Timeline handler
-  function handleTimeline(el, vars) {
-    const timeline = gsap.timeline({
-      scrollTrigger: createScrollTrigger(el)
-    });
-
-    Array.from(el.children).forEach(child => {
-      const position = child.dataset.position || '+=0';
-      timeline.from(child, {
+      const animation = gsap.from(el.dataset.stagger ? el.children : el, {
+        ...presets[type],
         ...vars,
-        ...parseVars(child.dataset.vars)
-      }, position);
+        duration,
+        stagger,
+        scrollTrigger: {
+          trigger: el,
+          start: trigger,
+          toggleActions: "play none none reverse"
+        }
+      });
+
+      // Timeline handler
+      if (el.dataset.timeline) {
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: el,
+            start: trigger
+          }
+        });
+        
+        Array.from(el.children).forEach((child, i) => {
+          const position = child.dataset.position || i * 0.3;
+          tl.from(child, {
+            ...presets[child.dataset.gsap],
+            duration: child.dataset.duration || duration
+          }, position);
+        });
+      }
     });
   }
 
-  // Public API
+  // Helpers
+  function parseStagger(val) {
+    try { return JSON.parse(val); } 
+    catch { return val ? parseFloat(val) : undefined; }
+  }
+
+  function parseVars(val) {
+    try { return val ? JSON.parse(val.replace(/'/g, '"')) : {}; } 
+    catch(e) { console.error('GSAP Vars Error:', e); return {}; }
+  }
+
   return {
     init() {
-      gsap.registerPlugin(ScrollTrigger);
-      document.querySelectorAll('[data-gsap]').forEach(animateElement);
-      
-      // Optional: Watch for new elements (CMS/async content)
-      new MutationObserver(() => {
-        document.querySelectorAll('[data-gsap]').forEach(animateElement);
-      }).observe(document.body, { subtree: true, childList: true });
+      initAnimations();
+      observeDOM(); // Critical for Webflow CMS
     }
   };
 })();
 
-// Auto-init
-window.addEventListener('DOMContentLoaded', () => {
-  GSAPAttributes.init();
-});
+// Webflow DOM fix
+window.Webflow && window.Webflow.push(() => GSAPAttributes.init());
