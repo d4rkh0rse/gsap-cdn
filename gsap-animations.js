@@ -1,14 +1,19 @@
-// gsap-animations.js
-
 class GSAPAnimation extends HTMLElement {
   constructor() {
     super();
-    
-    // Bind methods
     this.animateElement = this.animateElement.bind(this);
   }
 
   connectedCallback() {
+    // Ensure GSAP & ScrollTrigger are available
+    if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
+      console.error("GSAP or ScrollTrigger not found. Make sure they are loaded.");
+      return;
+    }
+
+    // Register ScrollTrigger
+    gsap.registerPlugin(ScrollTrigger);
+
     // Check for reduced motion preference
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) {
@@ -17,7 +22,7 @@ class GSAPAnimation extends HTMLElement {
       return;
     }
 
-    // Get animation attributes
+    // Get attributes from Webflow elements
     this.animationType = this.getAttribute('data-gsap');
     this.duration = parseFloat(this.getAttribute('data-duration')) || 1;
     this.delay = parseFloat(this.getAttribute('data-delay')) || 0;
@@ -30,93 +35,64 @@ class GSAPAnimation extends HTMLElement {
     this.toggleActions = this.getAttribute('data-toggle-actions') || 'play none none none';
     this.markers = this.getAttribute('data-markers') === 'true';
 
-    // Initialize GSAP timeline
-    this.timeline = gsap.timeline();
-
-    // Call the animation function
+    // Initialize GSAP animation
     this.animateElement();
   }
 
   animateElement() {
+    if (!this.animationType) {
+      console.error("No animation type provided for", this);
+      return;
+    }
+
     const animations = {
-      fadeIn: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, opacity: 0, y: 20, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      fadeOut: () => {
-        this.timeline.to(this, {duration: this.duration, delay: this.delay, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      slideInRight: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, x: 100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      slideOutLeft: () => {
-        this.timeline.to(this, {duration: this.duration, delay: this.delay, x: -100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      bounce: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, y: -50, opacity: 0, ease: "bounce.out", repeat: this.repeat, yoyo: this.yoyo});
-      },
-      rotateIn: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, rotation: -360, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      scaleUp: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, scale: 0, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
-      zoomIn: () => {
-        this.timeline.from(this, {duration: this.duration, delay: this.delay, scale: 0, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo});
-      },
+      fadeIn: () => gsap.from(this, { duration: this.duration, delay: this.delay, opacity: 0, y: 20, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
+      slideInRight: () => gsap.from(this, { duration: this.duration, delay: this.delay, x: 100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
+      rotateIn: () => gsap.from(this, { duration: this.duration, delay: this.delay, rotation: -360, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
+      scaleUp: () => gsap.from(this, { duration: this.duration, delay: this.delay, scale: 0, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo }),
+
       fadeInScroll: () => {
         gsap.from(this, {
-          duration: this.duration, delay: this.delay, opacity: 0, y: 20, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo,
+          duration: this.duration,
+          delay: this.delay,
+          opacity: 0,
+          y: 20,
+          ease: this.easing,
           scrollTrigger: {
             trigger: this,
             start: this.start,
             end: this.end,
             toggleActions: this.toggleActions,
             markers: this.markers,
-          },
+          }
         });
       },
+
       slideInRightScroll: () => {
         gsap.from(this, {
-          duration: this.duration, delay: this.delay, x: 100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo,
+          duration: this.duration,
+          delay: this.delay,
+          x: 100,
+          opacity: 0,
+          ease: this.easing,
           scrollTrigger: {
             trigger: this,
             start: this.start,
             end: this.end,
             toggleActions: this.toggleActions,
             markers: this.markers,
-          },
+          }
         });
       },
-      slideOutLeftScroll: () => {
-        gsap.to(this, {
-          duration: this.duration, delay: this.delay, x: -100, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo,
-          scrollTrigger: {
-            trigger: this,
-            start: this.start,
-            end: this.end,
-            toggleActions: this.toggleActions,
-            markers: this.markers,
-          },
-        });
-      },
-      rotateInScroll: () => {
-        gsap.from(this, {
-          duration: this.duration, delay: this.delay, rotation: -360, opacity: 0, ease: this.easing, repeat: this.repeat, yoyo: this.yoyo,
-          scrollTrigger: {
-            trigger: this,
-            start: this.start,
-            end: this.end,
-            toggleActions: this.toggleActions,
-            markers: this.markers,
-          },
-        });
-      }
     };
 
     if (animations[this.animationType]) {
       animations[this.animationType]();
+    } else {
+      console.error(`Unknown GSAP animation type: ${this.animationType}`);
     }
   }
 }
 
-customElements.define('gsap-animation', GSAPAnimation);
+// Define the custom element
+customElements.define("gsap-animation", GSAPAnimation);
