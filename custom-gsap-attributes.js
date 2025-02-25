@@ -1,7 +1,7 @@
 // custom-gsap-attributes.js
 const GSAPAttributes = (() => {
   const presets = {
-    fadeIn: { opacity: 0, y: 20, ease: "power2.out" },
+    fadeIn: { opacity: 0, yPercent: 20, ease: "power2.out" },
     slideUp: { y: 100, opacity: 0, ease: "power4.out" }
   };
 
